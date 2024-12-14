@@ -130,7 +130,6 @@ impl CPU {
                 carry: false,
                 negative: false,
             },
-            pp: 0,
 
             program_memory: [0; PROGRAM_MEMORY_SIZE],
             data_memory: [0; DATA_MEMORY_SIZE],
