@@ -164,6 +164,19 @@ impl CPU {
         println!("Flags - Zero: {}, Negative: {}, Carry: {}"
         , self.sr.zero, self.sr.negative, self.sr.carry);
     }
+    
+    fn debug_stack(&self) {
+        println!("sp: {}
+        stack: {:?}", self.sp, self.stack);
+    }
+
+    fn debug_program_memory(&self) {
+        println!("Program memory: {:?}", self.program_memory);
+    }
+
+    fn debug_data_memory(&self) {
+        println!("Data memory: {:?}", self.data_memory);
+    }
 
     fn decode_execute(&mut self, opcode: u32) {
         let instruction = Instruction::from_opcode(opcode);
@@ -225,6 +238,16 @@ impl CPU {
                 self.execute_mov(instruction.src_reg, instruction.dest_reg, instruction.immediate);
                 self.pc += 2;
             }
+            //..
+            0x19 => {
+                self.execute_push(instruction.src_reg, instruction.immediate);
+                self.pc += 2;
+            }
+            0x1A => {
+                self.execute_pop(instruction.dest_reg);
+                self.pc += 2;
+            }
+            //..
             0x1C => { // HALT
                 self.running = false;
             },
@@ -434,6 +457,39 @@ impl CPU {
         self.update_flags(value, 0, 0, "mov");
     }
 
+    //..
+
+    fn execute_push(&mut self, src_reg: u8, immediate: u16) {
+        let value = if src_reg == 0xF {
+            immediate as u32
+        } else {
+            self.read_register(src_reg)
+        };
+
+        if self.sp as usize == 0 {
+            panic!("Stack overflow: SP is at the bottom of the stack");
+        }
+
+        self.sp -= 4;  // Stack grows downwards (assuming 32-bit values)
+        let stack_pos = self.sp as usize;
+        let bytes = value.to_le_bytes();  
+
+        self.stack[stack_pos..stack_pos + 4].copy_from_slice(&bytes);
+    }
+
+    fn execute_pop(&mut self, dest_reg: u8) {
+        if self.sp as usize >= STACK_SIZE as usize {
+            panic!("Stack underflow: trying to pop from an empty stack");
+        }
+
+        let stack_pos = self.sp as usize;
+        let bytes = &self.stack[stack_pos..stack_pos + 4];
+        let value = u32::from_le_bytes(bytes.try_into().expect("Invalid stack data"));
+
+        self.sp += 4;
+
+        self.write_register(dest_reg, value);
+    }
 }
 
 fn main() { // TODO: Implement loading from file
