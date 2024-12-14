@@ -159,7 +159,9 @@ impl CPU {
             self.handle_interrupts();
             let addr = (self.pc as usize) / 2;
             if addr >= PROGRAM_MEMORY_SIZE - 3 {
-                panic!("Program counter out of bounds");
+                eprintln!("Program counter out of bounds at {:#X}", self.pc);
+                self.running = false;
+                return;;
             }
             
             let high = self.program_memory[addr] as u32;
@@ -169,6 +171,7 @@ impl CPU {
             self.decode_execute(instruction);
         }
     }
+    
 
     fn debug_registers(&self) {
         println!("R0: {:#X}, R1: {:#X}, R2: {:#X}, R3: {:#X}, R4: {:#X}, R5: {:#X}, R6: {:#X}, R7: {:#X}"
@@ -294,12 +297,13 @@ impl CPU {
                 self.execute_iret();
             }
             _ => {
-                panic!("Invalid Opcode: {:#X}", instruction.opcode);
-            },
+                eprintln!("Invalid Opcode: {:#X} at PC: {:#X}. Halting.", instruction.opcode, self.pc);
+                self.running = false;
+            }
         }
     }
 
-    fn read_register(&self, reg: u8) -> u32 {
+    fn read_register(&mut self, reg: u8) -> u32 {
         match reg {
             0 => self.r0,
             1 => self.r1,
@@ -309,7 +313,11 @@ impl CPU {
             5 => self.r5,
             6 => self.r6,
             7 => self.r7,
-            _ => panic!("Invalid register"),
+            _ => { 
+                eprintln!("Invalid register at {:#X}", self.pc);
+                self.running = false;
+                return 0xF;
+            },
         }
     }
 
@@ -323,7 +331,11 @@ impl CPU {
             5 => self.r5 = value,
             6 => self.r6 = value,
             7 => self.r7 = value,
-            _ => panic!("Invalid register"),
+            _ => { 
+                eprintln!("Invalid register at {:#X}", self.pc);
+                self.running = false;
+                return;
+            },
         }
     }
 
@@ -407,7 +419,9 @@ impl CPU {
         let dest_val = self.read_register(dest_reg);
 
         if src_val == 0 {
-            panic!("Division by zero!"); // TODO: Handle gracefully
+            eprintln!("Division by zero at PC: {:#X}. Halting.", self.pc);
+            self.running = false;
+            return;
         }
 
         let result = dest_val.wrapping_div(src_val);
@@ -479,7 +493,9 @@ impl CPU {
             let address = self.read_register(src_reg);
             
             if address as usize >= DATA_MEMORY_SIZE {
-                panic!("Error: Memory access out of bounds");
+                eprintln!("Error: Memory access out of bounds at {:#X}", self.pc);
+                self.running = false;
+                return;
             }
     
             self.data_memory[address as usize] as u32
@@ -499,7 +515,9 @@ impl CPU {
         };
     
         if address >= DATA_MEMORY_SIZE {
-            panic!("Error: Memory access out of bounds");
+            eprintln!("Error: Memory access out of bounds at {:#X}", self.pc);
+            self.running = false;
+            return;
         }
     
         self.data_memory[address] = value as u8;
@@ -530,7 +548,7 @@ impl CPU {
         if let Some(return_addr) = self.call_stack.pop() {
             self.pc = return_addr;
         } else {
-            panic!("Return stack underflow");
+            eprintln!("Return stack underflow at {:#X}", self.pc);
         }
     }
 
@@ -567,7 +585,9 @@ impl CPU {
         };
 
         if self.sp as usize == 0 {
-            panic!("Stack overflow: SP is at the bottom of the stack");
+            eprintln!("Stack overflow: SP is at the bottom of the stack at {:#X}", self.pc);
+            self.running = false;
+            return;
         }
 
         self.sp -= 4;  // Stack grows downwards (assuming 32-bit values)
@@ -579,7 +599,9 @@ impl CPU {
 
     fn execute_pop(&mut self, dest_reg: u8) {
         if self.sp as usize >= STACK_SIZE as usize {
-            panic!("Stack underflow: trying to pop from an empty stack");
+            eprintln!("Stack underflow: trying to pop from an empty stack at {:#X}", self.pc);
+            self.running = false;
+            return;
         }
 
         let stack_pos = self.sp as usize;
