@@ -35,7 +35,7 @@ enum Opcode {
     POP	= 0x1A,   // Pop data from the stack
     INT	= 0x1B,   // Trigger a software interrupt
     HALT = 0x1C,  // Halt the execution
-    RES1 = 0x1D,  // Reserved
+    IRET = 0x1D,  // Returns from an interrupt
     RES2 = 0x1E,  // Reserved
     RES3 = 0x1F   // Reserved
 }
@@ -65,7 +65,7 @@ impl Instruction {
     
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct Flags {
     zero: bool,
     negative: bool,
@@ -97,9 +97,17 @@ struct CPU {
     
     // Interrupt state
     call_stack: Vec<u32>,
-    interrupt_vector: [u8; 256],
+    interrupt_vector: [u32; 256],
     interrupt_enabled: bool,
-    interrupt_pending: bool,
+    interrupt_queue: Vec<u8>,
+    saved_state: Option<CpuState>,    
+}
+
+#[derive(Debug, Clone)]
+struct CpuState {
+    registers: [u32; 8],
+    pc: u32,
+    sr: Flags,
 }
 
 impl CPU {
@@ -131,7 +139,8 @@ impl CPU {
             call_stack: Vec::new(),
             interrupt_vector: [0; 256],
             interrupt_enabled: false,
-            interrupt_pending: false,
+            interrupt_queue: Vec::new(),
+            saved_state: None,
         }
     }
 
@@ -147,6 +156,7 @@ impl CPU {
 
     fn run(&mut self) {
         while self.running {
+            self.handle_interrupts();
             let addr = (self.pc as usize) / 2;
             if addr >= PROGRAM_MEMORY_SIZE - 3 {
                 panic!("Program counter out of bounds");
@@ -274,10 +284,15 @@ impl CPU {
                 self.execute_pop(instruction.dest_reg);
                 self.pc += 2;
             },
-            // TODO: Add interrupts
+            0x1B => { // INT
+                self.execute_int(instruction.immediate as u8);
+            },
             0x1C => { // HALT
                 self.running = false;
             },
+            0x1D => { // IRET
+                self.execute_iret();
+            }
             _ => {
                 panic!("Invalid Opcode: {:#X}", instruction.opcode);
             },
@@ -337,6 +352,24 @@ impl CPU {
                 self.sr.carry = false;
             }
         }
+    }
+
+    fn handle_interrupts(&mut self) {
+        if !self.interrupt_enabled || self.interrupt_queue.is_empty() {
+            return;
+        }
+
+        let interrupt = self.interrupt_queue.remove(0);
+        let handler_addr = self.interrupt_vector[interrupt as usize];
+        
+        self.saved_state = Some(CpuState {
+            registers: [self.r0, self.r1, self.r2, self.r3, self.r4, self.r5, self.r6, self.r7],
+            pc: self.pc,
+            sr: self.sr,
+        });
+
+        self.pc = handler_addr;
+        self.interrupt_enabled = false;
     }
 
     fn execute_add(&mut self, src_reg: u8, dest_reg: u8) {
@@ -484,7 +517,47 @@ impl CPU {
         self.update_flags(value, 0, 0, "mov");
     }
 
-    //..
+    fn execute_jmp(&mut self, immediate: u16) {
+        self.pc = immediate as u32;
+    }
+
+    fn execute_call(&mut self, immediate: u16) {
+        self.call_stack.push(self.pc + 2);
+        self.pc = immediate as u32;
+    }
+
+    fn execute_ret(&mut self) {
+        if let Some(return_addr) = self.call_stack.pop() {
+            self.pc = return_addr;
+        } else {
+            panic!("Return stack underflow");
+        }
+    }
+
+    // Helper function for all conditional jumps
+    fn execute_conditional_jump(&mut self, condition: bool, immediate: u16) {
+        if condition {
+            self.pc = immediate as u32;
+        } else {
+            self.pc += 2;
+        }
+    }
+
+    fn execute_je(&mut self, immediate: u16) {
+        self.execute_conditional_jump(self.sr.zero, immediate);
+    }
+
+    fn execute_jne(&mut self, immediate: u16) {
+        self.execute_conditional_jump(!self.sr.zero, immediate);
+    }
+
+    fn execute_jg(&mut self, immediate: u16) {
+        self.execute_conditional_jump(!self.sr.zero && !self.sr.negative, immediate);
+    }
+
+    fn execute_jl(&mut self, immediate: u16) {
+        self.execute_conditional_jump(self.sr.negative, immediate);
+    }
 
     fn execute_push(&mut self, src_reg: u8, immediate: u16) {
         let value = if src_reg == 0xF {
@@ -518,45 +591,16 @@ impl CPU {
         self.write_register(dest_reg, value);
     }
 
-    fn execute_jmp(&mut self, immediate: u16) {
-        self.pc = immediate as u32;
+    fn execute_int(&mut self, vector: u8) {
+        self.interrupt_queue.push(vector);
     }
 
-    // Helper function for all conditional jumps
-    fn execute_conditional_jump(&mut self, condition: bool, immediate: u16) {
-        if condition {
-            self.pc = immediate as u32;
-        } else {
-            self.pc += 2;
-        }
-    }
-
-    fn execute_je(&mut self, immediate: u16) {
-        self.execute_conditional_jump(self.sr.zero, immediate);
-    }
-
-    fn execute_jne(&mut self, immediate: u16) {
-        self.execute_conditional_jump(!self.sr.zero, immediate);
-    }
-
-    fn execute_jg(&mut self, immediate: u16) {
-        self.execute_conditional_jump(!self.sr.zero && !self.sr.negative, immediate);
-    }
-
-    fn execute_jl(&mut self, immediate: u16) {
-        self.execute_conditional_jump(self.sr.negative, immediate);
-    }
-
-    fn execute_call(&mut self, immediate: u16) {
-        self.call_stack.push(self.pc + 2);
-        self.pc = immediate as u32;
-    }
-
-    fn execute_ret(&mut self) {
-        if let Some(return_addr) = self.call_stack.pop() {
-            self.pc = return_addr;
-        } else {
-            panic!("Return stack underflow");
+    fn execute_iret(&mut self) {
+        if let Some(state) = self.saved_state.take() {
+            [self.r0, self.r1, self.r2, self.r3, self.r4, self.r5, self.r6, self.r7] = state.registers;
+            self.pc = state.pc;
+            self.sr = state.sr;
+            self.interrupt_enabled = true;
         }
     }
 }
