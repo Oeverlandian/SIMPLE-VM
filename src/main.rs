@@ -631,11 +631,11 @@ fn main() { // TODO: Implement loading from file
     let mut cpu = CPU::new();
      
     let program = [
-        0x00000000,  // NOP
-        0x0DF00003,  // MOV #3 -> R0
-        0x0DF10004,  // MOV #4 -> R1
-        0x01010000,  // ADD R0 + R1 -> R1
-        0x1C000000,  // HALT
+        0x00_0_0_0000,  // NOP
+        0x0D_F_0_0003,  // MOV #3 -> R0
+        0x0D_F_1_0004,  // MOV #4 -> R1
+        0x01_0_1_0000,  // ADD R0 + R1 -> R1
+        0x1C_0_0_0000,  // HALT
     ];
 
     cpu.load_program(&program);
