@@ -2,6 +2,12 @@
 
 SIMPLE-VM is a VM based on the custom SIMPLE architecture.
 
+## Use
+
+1. Download the executable from the releases path.
+2. Place the executable in your PATH
+3. Run ```simple {path/to/file/containing/machine/code}``` in your terminal
+
 ## Simple Instruction Machine for Programming and Logic Engineering
 
 SIMPLE is a RISC 32-bit microcontroller architecture.
