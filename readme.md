@@ -1,4 +1,7 @@
-# SIMPLE Architecture Documentation
+# SIMPLE-VM
+
+SIMPLE-VM is a VM based on the custom SIMPLE architecture.
+
 ## Simple Instruction Machine for Programming and Logic Engineering
 
 SIMPLE is a RISC 32-bit microcontroller architecture.
