@@ -4,9 +4,7 @@ use std::env;
 
 const PROGRAM_MEMORY_SIZE: usize = 1024 * 32; // 32 KB
 const DATA_MEMORY_SIZE: usize = 1024 * 8;     // 8 KB
-const STACK_SIZE: usize = 1024 * 1;           // 256 bytes
-const NUM_IO_PORTS: usize = 8;
-const IO_PORT_START: usize = DATA_MEMORY_SIZE - NUM_IO_PORTS;
+const STACK_SIZE: usize = 1024;           // 256 bytes
 
 /*
     NOP = 0x00,   // No operation
@@ -91,7 +89,6 @@ struct CPU {
     pc: u32,    // Program Counter
     sp: u32,    // Stack Pointer
     sr: Flags,  // Status Register/FLAGS
-    pp: u16,    // Peripheral Pointer
     
     // Memory
     program_memory: [u16; PROGRAM_MEMORY_SIZE],
@@ -198,8 +195,8 @@ impl CPU {
     fn debug_registers(&self) {
         println!("R0: {:#X}, R1: {:#X}, R2: {:#X}, R3: {:#X}, R4: {:#X}, R5: {:#X}, R6: {:#X}, R7: {:#X}"
         , self.r0, self.r1, self.r2, self.r3, self.r4, self.r5, self.r6, self.r7);
-        println!("PC: {:#X}, SP: {:#X}, PP: {:#X}"
-        , self.pc, self.sp, self.pp);
+        println!("PC: {:#X}, SP: {:#X}"
+        , self.pc, self.sp);
         println!("Flags - Zero: {}, Negative: {}, Carry: {}"
         , self.sr.zero, self.sr.negative, self.sr.carry);
     }
