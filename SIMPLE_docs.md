@@ -1,7 +1,7 @@
 # SIMPLE Architecture Documentation
 ## Simple Instruction Machine for Programming and Logic Engineering
 
-SIMPLE is a 32-bit microcontroller architecture.
+SIMPLE is a RISC 32-bit microcontroller architecture.
 
 ### Memory Layout
 - Program Memory: 32 KB
@@ -20,8 +20,10 @@ SIMPLE is a 32-bit microcontroller architecture.
 ### Instruction Format
 32-bit instruction word:
 ```
-[8-bit opcode][4-bit dest][4-bit src][16-bit immediate]
+[8-bit opcode][4-bit src][4-bit dest][16-bit immediate]
 ```
+
+15 inside the 4-bit src (F in hexidecimal) indicates that the immediate value is used instead of a src register.
 
 ### Status Flags
 - Zero (Z): Set when result is zero
@@ -30,20 +32,4 @@ SIMPLE is a 32-bit microcontroller architecture.
 
 ### Current Instruction Set
 
-| Opcode (Hex) | Mnemonic | Description | Format |
-|--------------|----------|-------------|---------|
-| 0x00 | NOP | No operation | NOP |
-| 0x01 | ADD | Add registers | ADD Rd, Rs |
-| 0x02 | SUB | Subtract registers | SUB Rd, Rs |
-| 0x03 | MUL | Multiply registers | MUL Rd, Rs |
-| 0x04 | DIV | Divide registers | DIV Rd, Rs |
-| 0x05 | AND | Bitwise AND | AND Rd, Rs |
-| 0x06 | OR | Bitwise OR | OR Rd, Rs |
-| 0x07 | XOR | Bitwise XOR | XOR Rd, Rs |
-| 0x08 | NOT | Bitwise NOT | NOT Rd, Rs |
-| 0x09 | SHL | Shift left | SHL Rd, Rs |
-| 0x0A | SHR | Shift right | SHR Rd, Rs |
-| 0x0B | LOAD | Load from memory | LOAD Rd, [Rs+imm] |
-| 0x0C | STORE | Store to memory | STORE Rs, [Rd+imm] |
-| 0x0D | MOV | Move/load immediate | MOV Rd, #imm or MOV Rd, Rs |
-| 0x1C | HALT | Halt execution | HALT |
+TODO
