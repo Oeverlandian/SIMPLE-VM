@@ -54,16 +54,6 @@ impl Instruction {
         let src_reg = ((opcode >> 20) & 0x0F) as u8;          // Extract the 4-bit source register
         let dest_reg = ((opcode >> 16) & 0x0F) as u8;         // Extract the 4-bit destination register
         let immediate = (opcode & 0xFFFF) as u16;            // Extract the 16-bit immediate value
-
-        println!("Raw opcode: 0x{:X}", opcode);               
-        println!("Opcode: {}
-        src_reg: {}, 
-        dest_reg: {}, 
-        immediate: {}", 
-        opcode_value, 
-        src_reg, 
-        dest_reg, 
-        immediate);
     
         Instruction {
             opcode: opcode_value,
@@ -177,7 +167,6 @@ impl CPU {
 
     fn decode_execute(&mut self, opcode: u32) {
         let instruction = Instruction::from_opcode(opcode);
-        println!("{}", instruction.dest_reg);
 
         match instruction.opcode {
             0x00 => { // NOP
@@ -454,7 +443,7 @@ fn main() { // TODO: Implement loading from file
         0x00000000,  // NOP
         0x0DF00003,  // MOV #3 -> R0
         0x0DF10004,  // MOV #4 -> R1
-        0x01010000,  // ADD R0 + R1 -> R1 // Why does it move #4 to R0 instead of R1
+        0x01010000,  // ADD R0 + R1 -> R1
         0x1C000000,  // HALT
     ];
 
