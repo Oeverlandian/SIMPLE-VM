@@ -1,3 +1,7 @@
+use std::fs::File;
+use std::io::{self, BufRead, BufReader};
+use std::env;
+
 const PROGRAM_MEMORY_SIZE: usize = 1024 * 32; // 32 KB
 const DATA_MEMORY_SIZE: usize = 1024 * 8;     // 8 KB
 const STACK_SIZE: usize = 1024 * 1;           // 256 bytes
@@ -154,6 +158,25 @@ impl CPU {
         }
     }
 
+    fn load_program_from_file(&mut self, file_path: String) -> io::Result<()> {
+        let file = File::open(file_path)?;
+        let reader = BufReader::new(file);
+
+        let mut program: Vec<u32> = Vec::new();
+
+        for line in reader.lines() {
+            let line = line?.trim().to_string();
+            if !line.is_empty() {
+                let instruction = u32::from_str_radix(&line, 16)
+                    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+                program.push(instruction);
+            }
+        }
+
+        self.load_program(&program);
+        Ok(())
+    }
+
     fn run(&mut self) {
         while self.running {
             self.handle_interrupts();
@@ -161,7 +184,7 @@ impl CPU {
             if addr >= PROGRAM_MEMORY_SIZE - 3 {
                 eprintln!("Program counter out of bounds at {:#X}", self.pc);
                 self.running = false;
-                return;;
+                return;
             }
             
             let high = self.program_memory[addr] as u32;
@@ -627,23 +650,29 @@ impl CPU {
     }
 }
 
-fn main() { // TODO: Implement loading from file
+fn main() {
+
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() > 1 {
+        let mut cpu = CPU::new();
+
+        match cpu.load_program_from_file(args[0].clone()) {
+            Ok(()) => {
+                println!("Program loaded successfully.");
+                cpu.run();
+                println!("Registers after program execution:");
+                cpu.debug_registers();
+            }
+            Err(err) => {
+                eprintln!("Error loading program: {}", err);
+            }
+        }
+    } else {
+        
+    }
+    
     let mut cpu = CPU::new();
      
-    let program = [
-        0x00_0_0_0000,  // NOP
-        0x0D_F_0_0003,  // MOV #3 -> R0
-        0x0D_F_1_0004,  // MOV #4 -> R1
-        0x01_0_1_0000,  // ADD R0 + R1 -> R1
-        0x1C_0_0_0000,  // HALT
-    ];
-
-    cpu.load_program(&program);
-    println!("Initial state:");
-    cpu.debug_registers();
     
-    cpu.run();
-    
-    println!("\nFinal state:");
-    cpu.debug_registers();
 }
