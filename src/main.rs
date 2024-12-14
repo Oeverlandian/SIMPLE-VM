@@ -96,6 +96,8 @@ struct CPU {
     stack: [u8; STACK_SIZE],
     
     // Interrupt state
+    call_stack: Vec<u32>,
+    interrupt_vector: [u8; 256],
     interrupt_enabled: bool,
     interrupt_pending: bool,
 }
@@ -126,6 +128,8 @@ impl CPU {
             data_memory: [0; DATA_MEMORY_SIZE],
             stack: [0; STACK_SIZE],
 
+            call_stack: Vec::new(),
+            interrupt_vector: [0; 256],
             interrupt_enabled: false,
             interrupt_pending: false,
         }
@@ -233,21 +237,44 @@ impl CPU {
             0x0C => { // STORE
                 self.execute_store(instruction.src_reg, instruction.dest_reg, instruction.immediate);
                 self.pc += 2;
-            }
-            0x0D => {
+            },
+            0x0D => { // MOV
                 self.execute_mov(instruction.src_reg, instruction.dest_reg, instruction.immediate);
                 self.pc += 2;
-            }
+            },
+            0x0E => { // JMP
+                self.execute_jmp(instruction.immediate);
+            },
+            0x0F => { // CALL
+                self.execute_call(instruction.immediate);
+            },
+            0x10 => { // RET
+                self.execute_ret();
+            },
+            0x11 => { // JE
+                self.execute_je(instruction.immediate);
+            },
+            0x12 => { // JNE
+                self.execute_jne(instruction.immediate);
+            },
+            0x13 => { // JG
+                self.execute_jg(instruction.immediate);
+            },
+            0x14 => { // JL
+                self.execute_jl(instruction.immediate);
+            },
+
             //..
-            0x19 => {
+
+            0x19 => { // PUSH
                 self.execute_push(instruction.src_reg, instruction.immediate);
                 self.pc += 2;
-            }
-            0x1A => {
+            },
+            0x1A => { // POP
                 self.execute_pop(instruction.dest_reg);
                 self.pc += 2;
-            }
-            //..
+            },
+            // TODO: Add interrupts
             0x1C => { // HALT
                 self.running = false;
             },
@@ -489,6 +516,48 @@ impl CPU {
         self.sp += 4;
 
         self.write_register(dest_reg, value);
+    }
+
+    fn execute_jmp(&mut self, immediate: u16) {
+        self.pc = immediate as u32;
+    }
+
+    // Helper function for all conditional jumps
+    fn execute_conditional_jump(&mut self, condition: bool, immediate: u16) {
+        if condition {
+            self.pc = immediate as u32;
+        } else {
+            self.pc += 2;
+        }
+    }
+
+    fn execute_je(&mut self, immediate: u16) {
+        self.execute_conditional_jump(self.sr.zero, immediate);
+    }
+
+    fn execute_jne(&mut self, immediate: u16) {
+        self.execute_conditional_jump(!self.sr.zero, immediate);
+    }
+
+    fn execute_jg(&mut self, immediate: u16) {
+        self.execute_conditional_jump(!self.sr.zero && !self.sr.negative, immediate);
+    }
+
+    fn execute_jl(&mut self, immediate: u16) {
+        self.execute_conditional_jump(self.sr.negative, immediate);
+    }
+
+    fn execute_call(&mut self, immediate: u16) {
+        self.call_stack.push(self.pc + 2);
+        self.pc = immediate as u32;
+    }
+
+    fn execute_ret(&mut self) {
+        if let Some(return_addr) = self.call_stack.pop() {
+            self.pc = return_addr;
+        } else {
+            panic!("Return stack underflow");
+        }
     }
 }
 
