@@ -8,8 +8,7 @@ const STACK_SIZE: usize = 1024 * 1;           // 256 bytes
 const NUM_IO_PORTS: usize = 8;
 const IO_PORT_START: usize = DATA_MEMORY_SIZE - NUM_IO_PORTS;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum Opcode {
+/*
     NOP = 0x00,   // No operation
     ADD = 0x01,   // Add two registers
     SUB = 0x02,   // Subtract two registers
@@ -42,7 +41,7 @@ enum Opcode {
     IRET = 0x1D,  // Returns from an interrupt
     RES2 = 0x1E,  // Reserved
     RES3 = 0x1F   // Reserved
-}
+*/
 
 #[derive(Debug)]
 struct Instruction {
@@ -339,7 +338,7 @@ impl CPU {
             _ => { 
                 eprintln!("Invalid register at {:#X}", self.pc);
                 self.running = false;
-                return 0xF;
+                0xF
             },
         }
     }
@@ -621,7 +620,7 @@ impl CPU {
     }
 
     fn execute_pop(&mut self, dest_reg: u8) {
-        if self.sp as usize >= STACK_SIZE as usize {
+        if self.sp as usize >= STACK_SIZE {
             eprintln!("Stack underflow: trying to pop from an empty stack at {:#X}", self.pc);
             self.running = false;
             return;
@@ -668,11 +667,6 @@ fn main() {
                 eprintln!("Error loading program: {}", err);
             }
         }
-    } else {
-        
     }
-    
-    let mut cpu = CPU::new();
-     
     
 }
