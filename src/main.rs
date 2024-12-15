@@ -1,6 +1,6 @@
 const PROGRAM_MEMORY_SIZE: usize = 1024 * 32; // 32 KB
 const DATA_MEMORY_SIZE: usize = 1024 * 8;     // 8 KB
-const STACK_SIZE: usize = 1024;           // 256 bytes
+const STACK_SIZE: usize = 1024;               // 1 KB
 
 /*
     NOP = 0x00,   // No operation
@@ -196,59 +196,59 @@ impl CPU {
         match instruction.opcode {
             0x00 => { // NOP
                 // Do nothing
-                self.pc += 2;
+                self.pc += 4;
             }
             0x01 => { // ADD
                 self.execute_add(instruction.src_reg, instruction.dest_reg);
-                self.pc += 2;
+                self.pc += 4;
             },
             0x02 => { // SUB
                 self.execute_sub(instruction.src_reg, instruction.dest_reg);
-                self.pc += 2;
+                self.pc += 4;
             },
             0x03 => { // MUL
                 self.execute_mul(instruction.src_reg, instruction.dest_reg);
-                self.pc += 2;
+                self.pc += 4;
             }
             0x04 => { // DIV
                 self.execute_div(instruction.src_reg, instruction.dest_reg);
-                self.pc += 2;
+                self.pc += 4;
             }
             0x05 => { // AND
                 self.execute_and(instruction.src_reg, instruction.dest_reg);
-                self.pc += 2;
+                self.pc += 4;
             }
             0x06 => { // OR
                 self.execute_or(instruction.src_reg, instruction.dest_reg);
-                self.pc += 2;
+                self.pc += 4;
             }   
             0x07 => { // XOR
                 self.execute_xor(instruction.src_reg, instruction.dest_reg);
-                self.pc += 2;
+                self.pc += 4;
             }
             0x08 => { // NOT
                 self.execute_not(instruction.src_reg, instruction.dest_reg);
-                self.pc += 2;
+                self.pc += 4;
             }
             0x09 => { // SHL
                 self.execute_shl(instruction.src_reg, instruction.dest_reg);
-                self.pc += 2;
+                self.pc += 4;
             }
             0x0A => { // SHR
                 self.execute_shr(instruction.src_reg, instruction.dest_reg);
-                self.pc += 2;
+                self.pc += 4;
             }
             0x0B => { // LOAD
                 self.execute_load(instruction.src_reg, instruction.dest_reg, instruction.immediate);
-                self.pc += 2;
+                self.pc += 4;
             }
             0x0C => { // STORE
                 self.execute_store(instruction.src_reg, instruction.dest_reg, instruction.immediate);
-                self.pc += 2;
+                self.pc += 4;
             },
             0x0D => { // MOV
                 self.execute_mov(instruction.src_reg, instruction.dest_reg, instruction.immediate);
-                self.pc += 2;
+                self.pc += 4;
             },
             0x0E => { // JMP
                 self.execute_jmp(instruction.immediate);
@@ -271,16 +271,25 @@ impl CPU {
             0x14 => { // JL
                 self.execute_jl(instruction.immediate);
             },
-
-            //..
-
+            0x15 => { // JGE
+                self.execute_jge(instruction.immediate);
+            },
+            0x16 => { // JLE
+                self.execute_jle(instruction.immediate);
+            },
+            0x17 => { // IN
+                self.pc += 4;
+            },
+            0x18 => { // OUT
+                self.pc += 4;
+            }
             0x19 => { // PUSH
                 self.execute_push(instruction.src_reg, instruction.immediate);
-                self.pc += 2;
+                self.pc += 4;
             },
             0x1A => { // POP
                 self.execute_pop(instruction.dest_reg);
-                self.pc += 2;
+                self.pc += 4;
             },
             0x1B => { // INT
                 self.execute_int(instruction.immediate as u8);
@@ -552,7 +561,7 @@ impl CPU {
         if condition {
             self.pc = immediate as u32;
         } else {
-            self.pc += 2;
+            self.pc += 4;
         }
     }
 
@@ -572,6 +581,14 @@ impl CPU {
         self.execute_conditional_jump(self.sr.negative, immediate);
     }
 
+    fn execute_jge(&mut self, immediate: u16) {
+        self.execute_conditional_jump(!self.sr.negative || self.sr.zero, immediate);
+    }
+
+    fn execute_jle(&mut self, immediate: u16) {
+        self.execute_conditional_jump(self.sr.negative || self.sr.zero , immediate);
+    }
+
     fn execute_push(&mut self, src_reg: u8, immediate: u16) {
         let value = if src_reg == 0xF {
             immediate as u32
@@ -585,7 +602,7 @@ impl CPU {
             return;
         }
 
-        self.sp -= 4;  // Stack grows downwards (assuming 32-bit values)
+        self.sp -= 4;
         let stack_pos = self.sp as usize;
         let bytes = value.to_le_bytes();  
 
