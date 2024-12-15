@@ -156,7 +156,7 @@ impl CPU {
             if addr >= PROGRAM_MEMORY_SIZE - 3 {
                 eprintln!("Program counter out of bounds at {:#X}", self.pc);
                 self.running = false;
-                return;;
+                return;
             }
             
             let high = self.program_memory[addr] as u32;
