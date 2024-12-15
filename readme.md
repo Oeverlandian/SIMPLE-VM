@@ -43,35 +43,35 @@ SIMPLE is a RISC 32-bit microcontroller architecture.
 
 | Opcode | Instruction | Description |
 |--------|-------------|-------------|
-| 00   | NOP         | No operation |
-| 01   | ADD         | Add two registers |
-| 02   | SUB         | Subtract two registers |
-| 03   | MUL         | Multiply two registers |
-| 04   | DIV         | Divide two registers |
-| 05   | AND         | AND between two registers (bitwise) |
-| 06   | OR          | OR between two registers (bitwise) |
-| 07   | XOR         | XOR between two registers (bitwise) |
-| 08   | NOT         | NOT between two registers (bitwise) |
-| 09   | SHL         | Shift left (*2) |
-| 0A   | SHR         | Shift right (/2) |
-| 0B   | LOAD        | Load data from memory to a register |
-| 0C   | STORE       | Store data from a register to memory |
-| 0D   | MOV         | Move data between registers |
-| 0E   | JMP         | Jump to an address |
-| 0F   | CALL        | Call a function or subroutine |
-| 10   | RET         | Return from function or subroutine |
-| 11   | JE          | Jump if equal |
-| 12   | JNE         | Jump if not equal |
-| 13   | JG          | Jump if greater than |
-| 14   | JL          | Jump if less than |
-| 15   | JGE         | Jump if greater or equal |
-| 16   | JLE         | Jump if less or equal |
-| 17   | IN          | Read data from an I/O port (Not in use) |
-| 18   | OUT         | Write data to an I/O port (Not in use) |
-| 19   | PUSH        | Push data onto the stack |
-| 1A   | POP         | Pop data from the stack |
-| 1B   | INT         | Trigger a software interrupt |
-| 1C   | HALT        | Halt the execution |
-| 1D   | IRET        | Returns from an interrupt |
-| 1E   | RES2        | Reserved |
-| 1F   | RES3        | Reserved |
+| 0x00   | NOP         | No operation |
+| 0x01   | ADD         | Add two registers |
+| 0x02   | SUB         | Subtract two registers |
+| 0x03   | MUL         | Multiply two registers |
+| 0x04   | DIV         | Divide two registers |
+| 0x05   | AND         | AND between two registers (bitwise) |
+| 0x06   | OR          | OR between two registers (bitwise) |
+| 0x07   | XOR         | XOR between two registers (bitwise) |
+| 0x08   | NOT         | NOT between two registers (bitwise) |
+| 0x09   | SHL         | Shift left (*2) |
+| 0x0A   | SHR         | Shift right (/2) |
+| 0x0B   | LOAD        | Load data from memory to a register |
+| 0x0C   | STORE       | Store data from a register to memory |
+| 0x0D   | MOV         | Move data between registers |
+| 0x0E   | JMP         | Jump to an address |
+| 0x0F   | CALL        | Call a function or subroutine |
+| 0x10   | RET         | Return from function or subroutine |
+| 0x11   | JE          | Jump if equal |
+| 0x12   | JNE         | Jump if not equal |
+| 0x13   | JG          | Jump if greater than |
+| 0x14   | JL          | Jump if less than |
+| 0x15   | JGE         | Jump if greater or equal |
+| 0x16   | JLE         | Jump if less or equal |
+| 0x17   | IN          | Read data from an I/O port (Not in use) |
+| 0x18   | OUT         | Write data to an I/O port (Not in use) |
+| 0x19   | PUSH        | Push data onto the stack |
+| 0x1A   | POP         | Pop data from the stack |
+| 0x1B   | INT         | Trigger a software interrupt |
+| 0x1C   | HALT        | Halt the execution |
+| 0x1D   | IRET        | Returns from an interrupt |
+| 0x1E   | RES2        | Reserved |
+| 0x1F   | RES3        | Reserved |

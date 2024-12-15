@@ -1,8 +1,11 @@
+<<<<<<< HEAD
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::Path;
 use std::env;
 
+=======
+>>>>>>> parent of 7b347ad (Added loading from file)
 const PROGRAM_MEMORY_SIZE: usize = 1024 * 32; // 32 KB
 const DATA_MEMORY_SIZE: usize = 1024 * 8;     // 8 KB
 const STACK_SIZE: usize = 1024;           // 256 bytes
@@ -161,7 +164,7 @@ impl CPU {
             if addr >= PROGRAM_MEMORY_SIZE - 3 {
                 eprintln!("Program counter out of bounds at {:#X}", self.pc);
                 self.running = false;
-                return;
+                return;;
             }
             
             let high = self.program_memory[addr] as u32;
@@ -627,6 +630,7 @@ impl CPU {
     }
 }
 
+<<<<<<< HEAD
 fn main() {
 
     let args: Vec<String> = env::args().collect();
@@ -648,4 +652,25 @@ fn main() {
         }
     }
     
+=======
+fn main() { // TODO: Implement loading from file
+    let mut cpu = CPU::new();
+     
+    let program = [
+        0x00_0_0_0000,  // NOP
+        0x0D_F_0_0003,  // MOV #3 -> R0
+        0x0D_F_1_0004,  // MOV #4 -> R1
+        0x01_0_1_0000,  // ADD R0 + R1 -> R1
+        0x1C_0_0_0000,  // HALT
+    ];
+
+    cpu.load_program(&program);
+    println!("Initial state:");
+    cpu.debug_registers();
+    
+    cpu.run();
+    
+    println!("\nFinal state:");
+    cpu.debug_registers();
+>>>>>>> parent of 7b347ad (Added loading from file)
 }
