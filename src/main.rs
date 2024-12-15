@@ -1,11 +1,3 @@
-<<<<<<< HEAD
-use std::fs::File;
-use std::io::{self, Read};
-use std::path::Path;
-use std::env;
-
-=======
->>>>>>> parent of 7b347ad (Added loading from file)
 const PROGRAM_MEMORY_SIZE: usize = 1024 * 32; // 32 KB
 const DATA_MEMORY_SIZE: usize = 1024 * 8;     // 8 KB
 const STACK_SIZE: usize = 1024;           // 256 bytes
@@ -630,29 +622,6 @@ impl CPU {
     }
 }
 
-<<<<<<< HEAD
-fn main() {
-
-    let args: Vec<String> = env::args().collect();
-
-    if args.len() > 1 {
-        let mut cpu = CPU::new();
-        let program_path = Path::new(&args[1]);
-
-        match cpu.load_program_from_file(program_path) {
-            Ok(()) => {
-                println!("Program loaded successfully.");
-                cpu.run();
-                println!("Registers after program execution:");
-                cpu.debug_registers();
-            }
-            Err(err) => {
-                eprintln!("Error loading program: {}", err);
-            }
-        }
-    }
-    
-=======
 fn main() { // TODO: Implement loading from file
     let mut cpu = CPU::new();
      
@@ -672,5 +641,4 @@ fn main() { // TODO: Implement loading from file
     
     println!("\nFinal state:");
     cpu.debug_registers();
->>>>>>> parent of 7b347ad (Added loading from file)
 }
