@@ -1,5 +1,6 @@
 use std::fs::File;
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, Read};
+use std::path::Path;
 use std::env;
 
 const PROGRAM_MEMORY_SIZE: usize = 1024 * 32; // 32 KB
@@ -151,25 +152,6 @@ impl CPU {
             self.program_memory[(addr / 2) + 1] = (instruction & 0xFFFF) as u16;
             }
         }
-    }
-
-    fn load_program_from_file(&mut self, file_path: String) -> io::Result<()> {
-        let file = File::open(file_path)?;
-        let reader = BufReader::new(file);
-
-        let mut program: Vec<u32> = Vec::new();
-
-        for line in reader.lines() {
-            let line = line?.trim().to_string();
-            if !line.is_empty() {
-                let instruction = u32::from_str_radix(&line, 16)
-                    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-                program.push(instruction);
-            }
-        }
-
-        self.load_program(&program);
-        Ok(())
     }
 
     fn run(&mut self) {
@@ -651,8 +633,9 @@ fn main() {
 
     if args.len() > 1 {
         let mut cpu = CPU::new();
+        let program_path = Path::new(&args[1]);
 
-        match cpu.load_program_from_file(args[0].clone()) {
+        match cpu.load_program_from_file(program_path) {
             Ok(()) => {
                 println!("Program loaded successfully.");
                 cpu.run();
