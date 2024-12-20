@@ -639,7 +639,7 @@ impl CPU {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum Token {
     NOP,   // No operation
     ADD,   // Add two registers
@@ -677,6 +677,7 @@ enum Token {
     Immediate(u16), // E.g. #31
     Label(String),  // E.g. loop:
     LabelReference(String), // E.g. @loop
+    Eof,
 }
 
 #[derive(Debug)]
@@ -724,6 +725,8 @@ fn lexer(program: &str) -> Result<Vec<Token>, LexerError>  {
             }
         }
     }
+
+    tokens.push(Token::Eof);
     
     Ok(tokens)
 }
@@ -823,6 +826,94 @@ fn tokenize_others(token: &str) -> Result<Token, String> {
     }
     
     Err(format!("Unrecognized token: {}", token))
+}
+
+#[derive(Debug)]
+struct ParsedLine {
+    label: Option<String>,
+    instruction: Option<String>,
+}
+
+#[derive(Debug)]
+struct ParserError {
+    line: usize,
+    message: String,
+}
+
+impl std::fmt::Display for ParserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Error at line {}: {}", 
+            self.line, self.message)
+    }
+}
+
+fn create_parser_error(line: usize, message: &str) -> ParserError {
+    ParserError {
+        line: line,
+        message: message.to_string(),
+    }
+}
+
+fn parse(tokens: Vec<Token>) -> Result<Vec<Instruction>, String> {
+    let mut instructions = Vec::new();
+    let mut current = 0;
+
+    while current < tokens.len() && tokens[current] != Token::Eof {
+        match parse_instruction(&tokens, &mut current) {
+            Ok(instruction) => instructions.push(instruction),
+            Err(e) => return Err(e),
+        }
+        current += 1;
+    }
+
+    Ok(instructions)
+}
+
+fn parse_instruction(tokens: &Vec<Token>, current: &mut usize) -> Result<Instruction, String> {
+    match &tokens[*current] {
+        Token::NOP => Ok(Instruction {
+            opcode: 0x00,
+            src_reg: 0,
+            dest_reg: 0,
+            immediate: 0
+        }),
+
+        Token::ADD => {
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected an operand in ADD opcode".to_string())
+            }
+
+            let (src_reg, src_imm) = match &tokens[*current] {
+                Token::Register(reg) => (*reg, None),
+                Token::Immediate(imm) => (0xF, Some(*imm)),
+                _ => return Err("Invalid source operand in ADD instruction".to_string()),
+            };
+
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected a second operand in ADD instruction".to_string())
+            }
+
+            let dest_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as destination in ADD instruction".to_string()),
+            };
+
+            Ok(Instruction {
+                opcode: 0x01,
+                src_reg,
+                dest_reg,
+                immediate: src_imm.unwrap_or(0),
+            })
+        },
+
+        // TODO: Add more opcodes
+
+        _ => Err(format!("Unknown instruction: {:?}", tokens[*current])),
+    }
 }
 
 fn main() { // TODO: Implement loading from file
