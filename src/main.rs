@@ -639,23 +639,214 @@ impl CPU {
     }
 }
 
+#[derive(Debug)]
+enum Token {
+    NOP,   // No operation
+    ADD,   // Add two registers
+    SUB,   // Subtract two registers
+    MUL,   // Multiply two registers
+    DIV,   // Divide two registers
+    AND,   // AND between two registers (bitwise)
+    OR,    // OR between two registers (bitwise)
+    XOR,   // XOR between two registers (bitwise)
+    NOT,   // NOT between two registers (bitwise)
+    SHL,   // Shift left (*2)
+    SHR,   // Shift right (/2)
+    LOAD,  // Load data from memory to a register
+    STORE, // Store data from a register to memory
+    MOV,   // Move data between registers
+    JMP,   // Jump to an address
+    CALL,   // Call a function or subroutine
+    RET,   // Return from function or subroutine
+    JE,    // Jump if equal
+    JNE,   // Jump if not equal
+    JG,    // Jump if greater than
+    JL,   // Jump if less than
+    JGE,   // Jump if greater or equal
+    JLE,   // Jump if less or equal
+    IN,   // Read data from an I/O port
+    OUT,   // Write data to an I/O port
+    PUSH,  // Push data onto the stack
+    POP,   // Pop data from the stack
+    INT,   // Trigger a software interrupt
+    HALT,  // Halt the execution
+    IRET,  // Returns from an interrupt
+    RES2, // Reserved
+    RES3, // Reserved
+    Register(u8),   // E.g. R1
+    Immediate(u16), // E.g. #31
+    Label(String),  // E.g. loop:
+    LabelReference(String), // E.g. @loop
+}
+
+#[derive(Debug)]
+struct LexerError {
+    line_number: usize,
+    column: usize,
+    message: String,
+}
+
+impl std::fmt::Display for LexerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Error at line {}, column {}: {}", 
+            self.line_number, self.column, self.message)
+    }
+}
+
+fn create_error(line: usize, column: usize, message: &str) -> LexerError {
+    LexerError {
+        line_number: line,
+        column: column,
+        message: message.to_string(),
+    }
+}
+
+fn lexer(program: &str) -> Result<Vec<Token>, LexerError>  {
+    let mut tokens = vec![];
+
+    for (line_num, line) in program.lines().enumerate() {
+        let line = match line.split(';').next() {
+            Some(content) => content.trim(),
+            None => continue,
+        };
+        
+        if line.is_empty() {
+            continue;
+        }
+
+        let mut column = 0;
+        for token_str in line.split_whitespace() {
+            column += token_str.len();
+            
+            match tokenize_token(token_str) {
+                Ok(token) => tokens.push(token),
+                Err(msg) => return Err(create_error(line_num + 1, column, &msg)),
+            }
+        }
+    }
+    
+    Ok(tokens)
+}
+
+fn tokenize_token(token: &str) -> Result<Token, String> {
+    let token = match token {
+        "NOP" => Ok(Token::NOP),
+        "ADD" => Ok(Token::ADD),
+        "SUB" => Ok(Token::SUB),
+        "MUL" => Ok(Token::MUL),
+        "DIV" => Ok(Token::DIV),
+        "AND" => Ok(Token::AND),
+        "OR" => Ok(Token::OR),
+        "XOR" => Ok(Token::XOR),
+        "NOT" => Ok(Token::NOT),
+        "SHL" => Ok(Token::SHL),
+        "SHR" => Ok(Token::SHR),
+        "LOAD" => Ok(Token::LOAD),
+        "STORE" => Ok(Token::STORE),
+        "MOV" => Ok(Token::MOV),
+        "JMP" => Ok(Token::JMP),
+        "CALL" => Ok(Token::CALL),
+        "RET" => Ok(Token::RET), 
+        "JE" => Ok(Token::JE), 
+        "JNE" => Ok(Token::JNE),
+        "JG" => Ok(Token::JG),
+        "JL" => Ok(Token::JL),
+        "JGE" => Ok(Token::JGE),
+        "JLE" => Ok(Token::JLE),
+        "IN" => Ok(Token::IN), 
+        "OUT" => Ok(Token::OUT),
+        "PUSH" => Ok(Token::PUSH),
+        "POP" => Ok(Token::POP),
+        "INT" => Ok(Token::INT),
+        "HALT" => Ok(Token::HALT),
+        "IRET" => Ok(Token::IRET),
+        "RES2" => Ok(Token::RES2),
+        "RES3" => Ok(Token::RES3),
+        _ => tokenize_others(token),
+    };
+
+    token
+}
+
+fn tokenize_others(token: &str) -> Result<Token, String> {
+
+    if token.ends_with(':') {
+        let label = &token[..token.len()-1];
+        if label.is_empty() {
+            return Err("Empty label name".to_string());
+        }
+        if !label.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            return Err("Invalid label name: can only contain alphanumeric characters and underscore".to_string());
+        }
+        return Ok(Token::Label(label.to_string()));
+    }
+    
+    if token.starts_with('@') {
+        let label = &token[1..];
+        if label.is_empty() {
+            return Err("Empty label reference".to_string());
+        }
+        if !label.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            return Err("Invalid label reference: can only contain alphanumeric characters and underscore".to_string());
+        }
+        return Ok(Token::LabelReference(label.to_string()));
+    }
+    
+    if token.starts_with('R') {
+        let register_str = token.get(1..)
+            .ok_or_else(|| "Invalid register format".to_string())?;
+            
+        let register = register_str.parse::<u8>()
+            .map_err(|_| "Invalid register number".to_string())?;
+            
+        if register > 7 {
+            return Err(format!("Register number {} out of range (0-7)", register));
+        }
+        
+        return Ok(Token::Register(register));
+    }
+    
+    if token.starts_with('#') {
+        let immediate_str = token.get(1..)
+            .ok_or_else(|| "Invalid immediate format".to_string())?;
+            
+        let immediate = match immediate_str {
+            s if s.starts_with("0x") => u16::from_str_radix(&s[2..], 16)
+                .map_err(|_| "Invalid hexadecimal immediate value".to_string())?,
+            s if s.starts_with("0b") => u16::from_str_radix(&s[2..], 2)
+                .map_err(|_| "Invalid binary immediate value".to_string())?,
+            s => s.parse::<u16>()
+                .map_err(|_| "Invalid immediate value".to_string())?,
+        };
+        
+        return Ok(Token::Immediate(immediate));
+    }
+    
+    Err(format!("Unrecognized token: {}", token))
+}
+
 fn main() { // TODO: Implement loading from file
     let mut cpu = CPU::new();
      
-    let program = [
+    /* let program = [
         0x00_0_0_0000,  // NOP
         0x0D_F_0_0003,  // MOV #3 -> R0
         0x0D_F_1_0004,  // MOV #4 -> R1
         0x01_0_1_0000,  // ADD R0 + R1 -> R1
         0x1C_0_0_0000,  // HALT
-    ];
+    ]; */
 
-    cpu.load_program(&program);
-    println!("Initial state:");
-    cpu.debug_registers();
-    
-    cpu.run();
-    
-    println!("\nFinal state:");
-    cpu.debug_registers();
+    let program_asm = 
+    r#"start:
+        NOP
+        MOV #3 R0
+        MOV #4 R1
+        ADD R0 R1
+        HALT
+        JMP @start"#;
+
+    match lexer(program_asm) {
+        Ok(tokens) => println!("Successfully tokenized: {:?}", tokens),
+        Err(e) => eprintln!("{}", e),
+    }
 }
