@@ -199,19 +199,19 @@ impl CPU {
                 self.pc += 4;
             }
             0x01 => { // ADD
-                self.execute_add(instruction.src_reg, instruction.dest_reg);
+                self.execute_add(instruction.src_reg, instruction.dest_reg, instruction.immediate);
                 self.pc += 4;
             },
             0x02 => { // SUB
-                self.execute_sub(instruction.src_reg, instruction.dest_reg);
+                self.execute_sub(instruction.src_reg, instruction.dest_reg, instruction.immediate);
                 self.pc += 4;
             },
             0x03 => { // MUL
-                self.execute_mul(instruction.src_reg, instruction.dest_reg);
+                self.execute_mul(instruction.src_reg, instruction.dest_reg, instruction.immediate);
                 self.pc += 4;
             }
             0x04 => { // DIV
-                self.execute_div(instruction.src_reg, instruction.dest_reg);
+                self.execute_div(instruction.src_reg, instruction.dest_reg, instruction.immediate);
                 self.pc += 4;
             }
             0x05 => { // AND
@@ -388,8 +388,14 @@ impl CPU {
         self.interrupt_enabled = false;
     }
 
-    fn execute_add(&mut self, src_reg: u8, dest_reg: u8) {
-        let src_val = self.read_register(src_reg);
+    fn execute_add(&mut self, src_reg: u8, dest_reg: u8, immediate: u16) {
+
+        let src_val = if src_reg == 0xF { // Checks if the immediate value has to be used
+            immediate as u32
+        } else {
+            self.read_register(src_reg)
+        };
+
         let dest_val = self.read_register(dest_reg);
         let result = dest_val.wrapping_add(src_val); // adds the two values
 
@@ -398,8 +404,14 @@ impl CPU {
         self.write_register(dest_reg, result); // set register to result
     }
 
-    fn execute_sub(&mut self, src_reg: u8, dest_reg: u8) {
-        let src_val = self.read_register(src_reg);
+    fn execute_sub(&mut self, src_reg: u8, dest_reg: u8, immediate: u16) {
+        
+        let src_val = if src_reg == 0xF {
+            immediate as u32
+        } else {
+            self.read_register(src_reg)
+        };
+
         let dest_val = self.read_register(dest_reg);
         let result = dest_val.wrapping_sub(src_val);
 
@@ -408,8 +420,14 @@ impl CPU {
         self.write_register(dest_reg, result);
     }
 
-    fn execute_mul(&mut self, src_reg: u8, dest_reg: u8) {
-        let src_val = self.read_register(src_reg);
+    fn execute_mul(&mut self, src_reg: u8, dest_reg: u8, immediate: u16) {
+        
+        let src_val = if src_reg == 0xF {
+            immediate as u32
+        } else {
+            self.read_register(src_reg)
+        };
+
         let dest_val = self.read_register(dest_reg);
         let result = dest_val.wrapping_mul(src_val);
 
@@ -418,8 +436,14 @@ impl CPU {
         self.write_register(dest_reg, result);
     }
 
-    fn execute_div(&mut self, src_reg: u8, dest_reg: u8) {
-        let src_val = self.read_register(src_reg);
+    fn execute_div(&mut self, src_reg: u8, dest_reg: u8, immediate: u16) {
+
+        let src_val = if src_reg == 0xF {
+            immediate as u32
+        } else {
+            self.read_register(src_reg)
+        };
+
         let dest_val = self.read_register(dest_reg);
 
         if src_val == 0 {
