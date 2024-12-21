@@ -71,7 +71,7 @@ struct Flags {
 }
 
 #[derive(Debug)]
-struct CPU {
+struct Cpu {
     running: bool,
 
     // Registers
@@ -107,7 +107,7 @@ struct CpuState {
     sr: Flags,
 }
 
-impl CPU {
+impl Cpu {
     fn new() -> Self {
         Self {
             running: true,
@@ -670,36 +670,36 @@ impl CPU {
 
 #[derive(Debug, PartialEq)]
 enum Token {
-    NOP,   // No operation
-    ADD,   // Add two registers
-    SUB,   // Subtract two registers
-    MUL,   // Multiply two registers
-    DIV,   // Divide two registers
-    AND,   // AND between two registers (bitwise)
-    OR,    // OR between two registers (bitwise)
-    XOR,   // XOR between two registers (bitwise)
-    NOT,   // NOT between two registers (bitwise)
-    SHL,   // Shift left (*2)
-    SHR,   // Shift right (/2)
-    LOAD,  // Load data from memory to a register
-    STORE, // Store data from a register to memory
-    MOV,   // Move data between registers
-    JMP,   // Jump to an address
-    CALL,   // Call a function or subroutine
-    RET,   // Return from function or subroutine
-    JE,    // Jump if equal
-    JNE,   // Jump if not equal
-    JG,    // Jump if greater than
-    JL,   // Jump if less than
-    JGE,   // Jump if greater or equal
-    JLE,   // Jump if less or equal
-    IN,   // Read data from an I/O port
-    OUT,   // Write data to an I/O port
-    PUSH,  // Push data onto the stack
-    POP,   // Pop data from the stack
-    INT,   // Trigger a software interrupt
-    HALT,  // Halt the execution
-    IRET,  // Returns from an interrupt
+    Nop,   // No operation
+    Add,   // Add two registers
+    Sub,   // Subtract two registers
+    Mul,   // Multiply two registers
+    Div,   // Divide two registers
+    And,   // AND between two registers (bitwise)
+    Or,    // OR between two registers (bitwise)
+    Xor,   // XOR between two registers (bitwise)
+    Not,   // NOT between two registers (bitwise)
+    Shl,   // Shift left (*2)
+    Shr,   // Shift right (/2)
+    Load,  // Load data from memory to a register
+    Store, // Store data from a register to memory
+    Mov,   // Move data between registers
+    Jmp,   // Jump to an address
+    Call,   // Call a function or subroutine
+    Ret,   // Return from function or subroutine
+    Je,    // Jump if equal
+    Jne,   // Jump if not equal
+    Jg,    // Jump if greater than
+    Jl,   // Jump if less than
+    Jge,   // Jump if greater or equal
+    Jle,   // Jump if less or equal
+    In,   // Read data from an I/O port
+    Out,   // Write data to an I/O port
+    Push,  // Push data onto the stack
+    Pop,   // Pop data from the stack
+    Int,   // Trigger a software interrupt
+    Halt,  // Halt the execution
+    Iret,  // Returns from an interrupt
     Register(u8),   // E.g. R1
     Immediate(u16), // E.g. #31
     Label(String),  // E.g. loop:
@@ -721,10 +721,10 @@ impl std::fmt::Display for LexerError {
     }
 }
 
-fn create_error(line: usize, column: usize, message: &str) -> LexerError {
+fn create_error(line_number: usize, column: usize, message: &str) -> LexerError {
     LexerError {
-        line_number: line,
-        column: column,
+        line_number,
+        column,
         message: message.to_string(),
     }
 }
@@ -759,41 +759,39 @@ fn lexer(program: &str) -> Result<Vec<Token>, LexerError>  {
 }
 
 fn tokenize_token(token: &str) -> Result<Token, String> {
-    let token = match token {
-        "NOP" => Ok(Token::NOP),
-        "ADD" => Ok(Token::ADD),
-        "SUB" => Ok(Token::SUB),
-        "MUL" => Ok(Token::MUL),
-        "DIV" => Ok(Token::DIV),
-        "AND" => Ok(Token::AND),
-        "OR" => Ok(Token::OR),
-        "XOR" => Ok(Token::XOR),
-        "NOT" => Ok(Token::NOT),
-        "SHL" => Ok(Token::SHL),
-        "SHR" => Ok(Token::SHR),
-        "LOAD" => Ok(Token::LOAD),
-        "STORE" => Ok(Token::STORE),
-        "MOV" => Ok(Token::MOV),
-        "JMP" => Ok(Token::JMP),
-        "CALL" => Ok(Token::CALL),
-        "RET" => Ok(Token::RET), 
-        "JE" => Ok(Token::JE), 
-        "JNE" => Ok(Token::JNE),
-        "JG" => Ok(Token::JG),
-        "JL" => Ok(Token::JL),
-        "JGE" => Ok(Token::JGE),
-        "JLE" => Ok(Token::JLE),
-        "IN" => Ok(Token::IN), 
-        "OUT" => Ok(Token::OUT),
-        "PUSH" => Ok(Token::PUSH),
-        "POP" => Ok(Token::POP),
-        "INT" => Ok(Token::INT),
-        "HALT" => Ok(Token::HALT),
-        "IRET" => Ok(Token::IRET),
+    match token {
+        "NOP" => Ok(Token::Nop),
+        "ADD" => Ok(Token::Add),
+        "SUB" => Ok(Token::Sub),
+        "MUL" => Ok(Token::Mul),
+        "DIV" => Ok(Token::Div),
+        "AND" => Ok(Token::And),
+        "OR" => Ok(Token::Or),
+        "XOR" => Ok(Token::Xor),
+        "NOT" => Ok(Token::Not),
+        "SHL" => Ok(Token::Shl),
+        "SHR" => Ok(Token::Shr),
+        "LOAD" => Ok(Token::Load),
+        "STORE" => Ok(Token::Store),
+        "MOV" => Ok(Token::Mov),
+        "JMP" => Ok(Token::Jmp),
+        "CALL" => Ok(Token::Call),
+        "RET" => Ok(Token::Ret), 
+        "JE" => Ok(Token::Je), 
+        "JNE" => Ok(Token::Jne),
+        "JG" => Ok(Token::Jg),
+        "JL" => Ok(Token::Jl),
+        "JGE" => Ok(Token::Jge),
+        "JLE" => Ok(Token::Jle),
+        "IN" => Ok(Token::In), 
+        "OUT" => Ok(Token::Out),
+        "PUSH" => Ok(Token::Push),
+        "POP" => Ok(Token::Pop),
+        "INT" => Ok(Token::Int),
+        "HALT" => Ok(Token::Halt),
+        "IRET" => Ok(Token::Iret),
         _ => tokenize_others(token),
-    };
-
-    token
+    }
 }
 
 fn tokenize_others(token: &str) -> Result<Token, String> {
@@ -883,7 +881,7 @@ fn parse(tokens: Vec<Token>) -> Result<Vec<Instruction>, String> {
                 continue;
             },
             token if is_instruction_start(token) => {
-                match parse_instruction(&tokens, &mut current, &label_positions, position) {
+                match parse_instruction(&tokens, &mut current, &label_positions) {
                     Ok(instruction) => {
                         instructions.push(instruction);
                         position += 4;
@@ -903,22 +901,22 @@ fn parse(tokens: Vec<Token>) -> Result<Vec<Instruction>, String> {
 
 fn is_instruction_start(token: &Token) -> bool {
     matches!(token,
-        Token::NOP | Token::ADD | Token::SUB | Token::MUL | Token::DIV | Token::AND | Token::OR | Token::XOR | Token::NOT | Token::SHL |
-        Token::SHR | Token::LOAD | Token::STORE | Token::MOV | Token::JMP | Token::CALL | Token::RET | Token::JE | Token::JNE | Token::JG |
-        Token::JL | Token::JGE | Token::JLE | Token::IN | Token::OUT | Token::PUSH | Token::POP | Token::INT | Token::HALT | Token::IRET
+        Token::Nop | Token::Add | Token::Sub | Token::Mul | Token::Div | Token::And | Token::Or | Token::Xor | Token::Not | Token::Shl |
+        Token::Shr | Token::Load | Token::Store | Token::Mov | Token::Jmp | Token::Call | Token::Ret | Token::Je | Token::Jne | Token::Jg |
+        Token::Jl | Token::Jge | Token::Jle | Token::In | Token::Out | Token::Push | Token::Pop | Token::Int | Token::Halt | Token::Iret
     )
 }
 
-fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: &HashMap<String, u32>, current_position: u32,) -> Result<Instruction, String> {
+fn parse_instruction(tokens: &[Token], current: &mut usize, label_positions: &HashMap<String, u32>) -> Result<Instruction, String> {
     match &tokens[*current] {
-        Token::NOP => Ok(Instruction {
+        Token::Nop => Ok(Instruction {
             opcode: 0x00,
             src_reg: 0,
             dest_reg: 0,
             immediate: 0
         }),
 
-        Token::ADD => {
+        Token::Add => {
             *current += 1;
 
             if *current >= tokens.len() {
@@ -950,7 +948,7 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
             })
         },
 
-        Token::SUB => {
+        Token::Sub => {
             *current += 1;
 
             if *current >= tokens.len() {
@@ -982,7 +980,7 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
             })
         },
 
-        Token::MUL => {
+        Token::Mul => {
             *current += 1;
 
             if *current >= tokens.len() {
@@ -1014,7 +1012,7 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
             })
         },
 
-        Token::DIV => {
+        Token::Div => {
             *current += 1;
 
             if *current >= tokens.len() {
@@ -1046,7 +1044,7 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
             })
         },
 
-        Token::AND => {
+        Token::And => {
             *current += 1;
 
             if *current >= tokens.len() {
@@ -1077,7 +1075,7 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
             })
         },
 
-        Token::OR => {
+        Token::Or => {
             *current += 1;
 
             if *current >= tokens.len() {
@@ -1108,7 +1106,7 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
             })
         },
 
-        Token::XOR => {
+        Token::Xor => {
             *current += 1;
 
             if *current >= tokens.len() {
@@ -1139,7 +1137,7 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
             })
         },
 
-        Token::NOT => {
+        Token::Not => {
             *current += 1;
 
             if *current >= tokens.len() {
@@ -1170,7 +1168,7 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
             })
         },
         
-        Token::SHL => {
+        Token::Shl => {
             *current += 1;
 
             if *current >= tokens.len() {
@@ -1201,7 +1199,7 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
             })
         },
 
-        Token::SHR => {
+        Token::Shr => {
             *current += 1;
 
             if *current >= tokens.len() {
@@ -1232,7 +1230,7 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
             })
         },
 
-        Token::LOAD => {
+        Token::Load => {
             *current += 1;
             if *current >= tokens.len() {
                 return Err("Expected an operand in LOAD opcode".to_string());
@@ -1262,7 +1260,7 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
             })
         },
 
-        Token::STORE => {
+        Token::Store => {
             *current += 1;
             if *current >= tokens.len() {
                 return Err("Expected an operand in STORE opcode".to_string());
@@ -1292,7 +1290,7 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
             })
         },
 
-        Token::MOV => {
+        Token::Mov => {
             *current += 1;
             if *current >= tokens.len() {
                 return Err("Expected an operand in MOV opcode".to_string());
@@ -1322,7 +1320,7 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
             })
         },
 
-        Token::JMP => {
+        Token::Jmp => {
             *current += 1;
             if *current >= tokens.len() {
                 return Err("Expected an operand in JMP instruction".to_string());
@@ -1345,7 +1343,7 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
             })
         },
 
-        Token::CALL => {
+        Token::Call => {
             *current += 1;
             if *current >= tokens.len() {
                 return Err("Expected an operand in CALL instruction".to_string());
@@ -1370,7 +1368,7 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
 
         
 
-        Token::JE | Token::JNE | Token::JG | Token::JL | Token::JGE | Token::JLE => {
+        Token::Je | Token::Jne | Token::Jg | Token::Jl | Token::Jge | Token::Jle => {
             *current += 1;
             if *current >= tokens.len() {
                 return Err("Expected an operand in conditional jump instruction".to_string());
@@ -1386,12 +1384,12 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
             };
 
             let opcode = match &tokens[*current - 1] {
-                Token::JE => 0x11,
-                Token::JNE => 0x12,
-                Token::JG => 0x13,
-                Token::JL => 0x14,
-                Token::JGE => 0x15,
-                Token::JLE => 0x16,
+                Token::Je => 0x11,
+                Token::Jne => 0x12,
+                Token::Jg => 0x13,
+                Token::Jl => 0x14,
+                Token::Jge => 0x15,
+                Token::Jle => 0x16,
                 _ => unreachable!(),
             };
 
@@ -1405,7 +1403,7 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
 
         // TODO: ADD IN and OUT after it's implemented (!!)
 
-        Token::PUSH => {
+        Token::Push => {
             *current += 1;
             if *current >= tokens.len() {
                 return Err("Expected an operand in PUSH opcode".to_string());
@@ -1425,7 +1423,7 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
             })
         },
 
-        Token::POP => {
+        Token::Pop => {
             *current += 1;
             if *current >= tokens.len() {
                 return Err("Expected an operand in POP opcode".to_string())
@@ -1444,7 +1442,7 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
             })
         }
 
-        Token::INT => {
+        Token::Int => {
             *current += 1;
             if *current >= tokens.len() {
                 return Err("Expected an operand in INT instruction".to_string());
@@ -1468,14 +1466,14 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
             })
         },
 
-        Token::HALT => Ok(Instruction {
+        Token::Halt => Ok(Instruction {
             opcode: 0x1C,
             src_reg: 0,
             dest_reg: 0,
             immediate: 0,
         }),
 
-        Token::IRET => Ok(Instruction {
+        Token::Iret => Ok(Instruction {
             opcode: 0x1D,
             src_reg: 0,
             dest_reg: 0,
@@ -1498,16 +1496,16 @@ fn encode(instructions: Vec<Instruction>) -> Vec<u32> {
 }
 
 fn pack_instruction(opcode: u8, src_reg: u8, dest_reg: u8, immediate: u16) -> u32 {
-    let opcode = (opcode & 0xFF) as u32;
+    let opcode = opcode as u32;
     let src_reg = (src_reg & 0xF) as u32;
     let dest_reg = (dest_reg & 0xF) as u32;
-    let immediate = (immediate & 0xFFFF) as u32;
+    let immediate = immediate as u32;
     
     (opcode << 24) | (src_reg << 20) | (dest_reg << 16) | immediate
 }
 
 fn main() {
-    let mut cpu = CPU::new();
+    let mut cpu = Cpu::new();
 
     let args: Vec<String> = env::args().collect();
     
