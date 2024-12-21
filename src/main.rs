@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 const PROGRAM_MEMORY_SIZE: usize = 1024 * 32; // 32 KB
 const DATA_MEMORY_SIZE: usize = 1024 * 8;     // 8 KB
 const STACK_SIZE: usize = 1024;               // 1 KB
@@ -18,7 +20,7 @@ const STACK_SIZE: usize = 1024;               // 1 KB
     STORE = 0x0C, // Store data from a register to memory
     MOV = 0x0D,   // Move data between registers
     JMP = 0x0E,   // Jump to an address
-    CALL = 0xF,   // Call a function or subroutine
+    CALL = 0x0F,   // Call a function or subroutine
     RET = 0x10,   // Return from function or subroutine
     JE = 0x11,    // Jump if equal
     JNE	= 0x12,   // Jump if not equal
@@ -33,8 +35,6 @@ const STACK_SIZE: usize = 1024;               // 1 KB
     INT	= 0x1B,   // Trigger a software interrupt
     HALT = 0x1C,  // Halt the execution
     IRET = 0x1D,  // Returns from an interrupt
-    RES2 = 0x1E,  // Reserved
-    RES3 = 0x1F   // Reserved
 */
 
 #[derive(Debug)]
@@ -162,8 +162,9 @@ impl CPU {
             let high = self.program_memory[addr] as u32;
             let low = self.program_memory[addr + 1] as u32;
             let instruction = (high << 16) | low;
-            
-            self.decode_execute(instruction);
+
+            let instruction = self.decode(instruction);
+            self.execute(instruction)
         }
     }
     
@@ -190,8 +191,11 @@ impl CPU {
         println!("Data memory: {:?}", self.data_memory);
     }
 
-    fn decode_execute(&mut self, opcode: u32) {
-        let instruction = Instruction::from_opcode(opcode);
+    fn decode(&mut self, opcode: u32) -> Instruction {
+        Instruction::from_opcode(opcode)
+    }
+
+    fn execute(&mut self, instruction: Instruction) {
 
         match instruction.opcode {
             0x00 => { // NOP
@@ -695,8 +699,6 @@ enum Token {
     INT,   // Trigger a software interrupt
     HALT,  // Halt the execution
     IRET,  // Returns from an interrupt
-    RES2, // Reserved
-    RES3, // Reserved
     Register(u8),   // E.g. R1
     Immediate(u16), // E.g. #31
     Label(String),  // E.g. loop:
@@ -787,8 +789,6 @@ fn tokenize_token(token: &str) -> Result<Token, String> {
         "INT" => Ok(Token::INT),
         "HALT" => Ok(Token::HALT),
         "IRET" => Ok(Token::IRET),
-        "RES2" => Ok(Token::RES2),
-        "RES3" => Ok(Token::RES3),
         _ => tokenize_others(token),
     };
 
@@ -852,40 +852,47 @@ fn tokenize_others(token: &str) -> Result<Token, String> {
     Err(format!("Unrecognized token: {}", token))
 }
 
-#[derive(Debug)]
-struct ParsedLine {
-    label: Option<String>,
-    instruction: Option<String>,
-}
-
-#[derive(Debug)]
-struct ParserError {
-    line: usize,
-    message: String,
-}
-
-impl std::fmt::Display for ParserError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Error at line {}: {}", 
-            self.line, self.message)
-    }
-}
-
-fn create_parser_error(line: usize, message: &str) -> ParserError {
-    ParserError {
-        line: line,
-        message: message.to_string(),
-    }
-}
-
 fn parse(tokens: Vec<Token>) -> Result<Vec<Instruction>, String> {
     let mut instructions = Vec::new();
+    let mut label_positions = HashMap::new();
     let mut current = 0;
+    let mut position = 0;
 
+    // First pass to collect labels
     while current < tokens.len() && tokens[current] != Token::Eof {
-        match parse_instruction(&tokens, &mut current) {
-            Ok(instruction) => instructions.push(instruction),
-            Err(e) => return Err(e),
+        match &tokens[current] {
+            Token::Label(name) => {
+                label_positions.insert(name.clone(), position);
+            },
+            token if is_instruction_start(token) => {
+                position += 4;
+            },
+            _ => {}
+        }
+        current += 1;
+    }
+
+    current = 0;
+
+    // Second pass
+    while current < tokens.len() && tokens[current] != Token::Eof {
+        match &tokens[current] {
+            Token::Label(_) => {
+                current += 1;
+                continue;
+            },
+            token if is_instruction_start(token) => {
+                match parse_instruction(&tokens, &mut current, &label_positions, position) {
+                    Ok(instruction) => {
+                        instructions.push(instruction);
+                        position += 4;
+                    },
+                    Err(e) => return Err(e),
+                }
+            },
+            _ => {
+                return Err(format!("Unexpected token: {:?}", tokens[current]));
+            }
         }
         current += 1;
     }
@@ -893,7 +900,15 @@ fn parse(tokens: Vec<Token>) -> Result<Vec<Instruction>, String> {
     Ok(instructions)
 }
 
-fn parse_instruction(tokens: &Vec<Token>, current: &mut usize) -> Result<Instruction, String> {
+fn is_instruction_start(token: &Token) -> bool {
+    matches!(token,
+        Token::NOP | Token::ADD | Token::SUB | Token::MUL | Token::DIV | Token::AND | Token::OR | Token::XOR | Token::NOT | Token::SHL |
+        Token::SHR | Token::LOAD | Token::STORE | Token::MOV | Token::JMP | Token::CALL | Token::RET | Token::JE | Token::JNE | Token::JG |
+        Token::JL | Token::JGE | Token::JLE | Token::IN | Token::OUT | Token::PUSH | Token::POP | Token::INT | Token::HALT | Token::IRET
+    )
+}
+
+fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: &HashMap<String, u32>, current_position: u32,) -> Result<Instruction, String> {
     match &tokens[*current] {
         Token::NOP => Ok(Instruction {
             opcode: 0x00,
@@ -934,7 +949,537 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize) -> Result<Instruc
             })
         },
 
-        // TODO: Add more opcodes
+        Token::SUB => {
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected an operand in SUB opcode".to_string())
+            }
+
+            let (src_reg, src_imm) = match &tokens[*current] {
+                Token::Register(reg) => (*reg, None),
+                Token::Immediate(imm) => (0xF, Some(*imm)),
+                _ => return Err("Invalid source operand in SUB instruction".to_string()),
+            };
+
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected a second operand in SUB instruction".to_string())
+            }
+
+            let dest_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as destination in SUB instruction".to_string()),
+            };
+
+            Ok(Instruction {
+                opcode: 0x02,
+                src_reg,
+                dest_reg,
+                immediate: src_imm.unwrap_or(0),
+            })
+        },
+
+        Token::MUL => {
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected an operand in MUL opcode".to_string())
+            }
+
+            let (src_reg, src_imm) = match &tokens[*current] {
+                Token::Register(reg) => (*reg, None),
+                Token::Immediate(imm) => (0xF, Some(*imm)),
+                _ => return Err("Invalid source operand in MUL instruction".to_string()),
+            };
+
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected a second operand in MUL instruction".to_string())
+            }
+
+            let dest_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as destination in MUL instruction".to_string()),
+            };
+
+            Ok(Instruction {
+                opcode: 0x03,
+                src_reg,
+                dest_reg,
+                immediate: src_imm.unwrap_or(0),
+            })
+        },
+
+        Token::DIV => {
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected an operand in DIV opcode".to_string())
+            }
+
+            let (src_reg, src_imm) = match &tokens[*current] {
+                Token::Register(reg) => (*reg, None),
+                Token::Immediate(imm) => (0xF, Some(*imm)),
+                _ => return Err("Invalid source operand in DIV instruction".to_string()),
+            };
+
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected a second operand in DIV instruction".to_string())
+            }
+
+            let dest_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as destination in DIV instruction".to_string()),
+            };
+
+            Ok(Instruction {
+                opcode: 0x04,
+                src_reg,
+                dest_reg,
+                immediate: src_imm.unwrap_or(0),
+            })
+        },
+
+        Token::AND => {
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected an operand in AND opcode".to_string())
+            }
+
+            let src_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as source in AND instruction".to_string()),
+            };
+
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected a second operand in AND instruction".to_string())
+            }
+
+            let dest_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as destination in AND instruction".to_string()),
+            };
+
+            Ok(Instruction {
+                opcode: 0x05,
+                src_reg,
+                dest_reg,
+                immediate: 0,
+            })
+        },
+
+        Token::OR => {
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected an operand in OR opcode".to_string())
+            }
+
+            let src_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as source in OR instruction".to_string()),
+            };
+
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected a second operand in OR instruction".to_string())
+            }
+
+            let dest_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as destination in OR instruction".to_string()),
+            };
+
+            Ok(Instruction {
+                opcode: 0x06,
+                src_reg,
+                dest_reg,
+                immediate: 0,
+            })
+        },
+
+        Token::XOR => {
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected an operand in XOR opcode".to_string())
+            }
+
+            let src_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as source in XOR instruction".to_string()),
+            };
+
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected a second operand in XOR instruction".to_string())
+            }
+
+            let dest_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as destination in XOR instruction".to_string()),
+            };
+
+            Ok(Instruction {
+                opcode: 0x07,
+                src_reg,
+                dest_reg,
+                immediate: 0,
+            })
+        },
+
+        Token::NOT => {
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected an operand in NOT opcode".to_string())
+            }
+
+            let src_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as source in NOT instruction".to_string()),
+            };
+
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected a second operand in NOT instruction".to_string())
+            }
+
+            let dest_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as destination in NOT instruction".to_string()),
+            };
+
+            Ok(Instruction {
+                opcode: 0x08,
+                src_reg,
+                dest_reg,
+                immediate: 0,
+            })
+        },
+        
+        Token::SHL => {
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected an operand in SHL opcode".to_string())
+            }
+
+            let src_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as source in SHL instruction".to_string()),
+            };
+
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected a second operand in SHL instruction".to_string())
+            }
+
+            let dest_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as destination in SHL instruction".to_string()),
+            };
+
+            Ok(Instruction {
+                opcode: 0x0A,
+                src_reg,
+                dest_reg,
+                immediate: 0,
+            })
+        },
+
+        Token::SHR => {
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected an operand in SHR opcode".to_string())
+            }
+
+            let src_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as source in SHR instruction".to_string()),
+            };
+
+            *current += 1;
+
+            if *current >= tokens.len() {
+                return Err("Expected a second operand in SHR instruction".to_string())
+            }
+
+            let dest_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as destination in SHR instruction".to_string()),
+            };
+
+            Ok(Instruction {
+                opcode: 0x0B,
+                src_reg,
+                dest_reg,
+                immediate: 0,
+            })
+        },
+
+        Token::LOAD => {
+            *current += 1;
+            if *current >= tokens.len() {
+                return Err("Expected an operand in LOAD opcode".to_string());
+            }
+
+            let (src_reg, src_imm) = match &tokens[*current] {
+                Token::Register(reg) => (*reg, None),
+                Token::Immediate(imm) => (0xF, Some(*imm)),
+                _ => return Err("Invalid source operand in LOAD instruction".to_string()),
+            };
+
+            *current += 1;
+            if *current >= tokens.len() {
+                return Err("Expected second operand in LOAD instruction".to_string());
+            }
+
+            let dest_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as destination in LOAD instruction".to_string()),
+            };
+
+            Ok(Instruction {
+                opcode: 0x0B,
+                src_reg,
+                dest_reg,
+                immediate: src_imm.unwrap_or(0),
+            })
+        },
+
+        Token::STORE => {
+            *current += 1;
+            if *current >= tokens.len() {
+                return Err("Expected an operand in STORE opcode".to_string());
+            }
+
+            let (src_reg, src_imm) = match &tokens[*current] {
+                Token::Register(reg) => (*reg, None),
+                Token::Immediate(imm) => (0xF, Some(*imm)),
+                _ => return Err("Invalid source operand in STORE instruction".to_string()),
+            };
+
+            *current += 1;
+            if *current >= tokens.len() {
+                return Err("Expected second operand in STORE instruction".to_string());
+            }
+
+            let dest_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as destination in STORE instruction".to_string()),
+            };
+
+            Ok(Instruction {
+                opcode: 0x0C,
+                src_reg,
+                dest_reg,
+                immediate: src_imm.unwrap_or(0),
+            })
+        },
+
+        Token::MOV => {
+            *current += 1;
+            if *current >= tokens.len() {
+                return Err("Expected an operand in MOV opcode".to_string());
+            }
+
+            let (src_reg, src_imm) = match &tokens[*current] {
+                Token::Register(reg) => (*reg, None),
+                Token::Immediate(imm) => (0xF, Some(*imm)),
+                _ => return Err("Invalid source operand in MOV instruction".to_string()),
+            };
+
+            *current += 1;
+            if *current >= tokens.len() {
+                return Err("Expected second operand in MOV instruction".to_string());
+            }
+
+            let dest_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected register as destination in MOV instruction".to_string()),
+            };
+
+            Ok(Instruction {
+                opcode: 0x0D,
+                src_reg,
+                dest_reg,
+                immediate: src_imm.unwrap_or(0),
+            })
+        },
+
+        Token::JMP => {
+            *current += 1;
+            if *current >= tokens.len() {
+                return Err("Expected an operand in JMP instruction".to_string());
+            }
+
+            let immediate = match &tokens[*current] {
+                Token::LabelReference(label) => {
+                    *label_positions.get(label)
+                        .ok_or_else(|| format!("Undefined label: {}", label))?
+                },
+                Token::Immediate(imm) => *imm as u32,
+                _ => return Err("Expected label reference or immediate value in JMP instruction".to_string()),
+            };
+
+            Ok(Instruction {
+                opcode: 0x0E,
+                src_reg: 0,
+                dest_reg: 0,
+                immediate: immediate as u16,
+            })
+        },
+
+        Token::CALL => {
+            *current += 1;
+            if *current >= tokens.len() {
+                return Err("Expected an operand in CALL instruction".to_string());
+            }
+
+            let immediate = match &tokens[*current] {
+                Token::LabelReference(label) => {
+                    *label_positions.get(label)
+                        .ok_or_else(|| format!("Undefined label: {}", label))?
+                },
+                Token::Immediate(imm) => *imm as u32,
+                _ => return Err("Expected label reference or immediate value in CALL instruction".to_string()),
+            };
+
+            Ok(Instruction {
+                opcode: 0x0F,
+                src_reg: 0,
+                dest_reg: 0,
+                immediate: immediate as u16,
+            })
+        },
+
+        
+
+        Token::JE | Token::JNE | Token::JG | Token::JL | Token::JGE | Token::JLE => {
+            *current += 1;
+            if *current >= tokens.len() {
+                return Err("Expected an operand in conditional jump instruction".to_string());
+            }
+
+            let immediate = match &tokens[*current] {
+                Token::LabelReference(label) => {
+                    *label_positions.get(label)
+                        .ok_or_else(|| format!("Undefined label: {}", label))?
+                },
+                Token::Immediate(imm) => *imm as u32,
+                _ => return Err("Expected label reference or immediate value in conditional jump instruction".to_string()),
+            };
+
+            let opcode = match &tokens[*current - 1] {
+                Token::JE => 0x11,
+                Token::JNE => 0x12,
+                Token::JG => 0x13,
+                Token::JL => 0x14,
+                Token::JGE => 0x15,
+                Token::JLE => 0x16,
+                _ => unreachable!(),
+            };
+
+            Ok(Instruction {
+                opcode,
+                src_reg: 0,
+                dest_reg: 0,
+                immediate: immediate as u16,
+            })
+        },
+
+        // TODO: ADD IN and OUT after it's implemented (!!)
+
+        Token::PUSH => {
+            *current += 1;
+            if *current >= tokens.len() {
+                return Err("Expected an operand in PUSH opcode".to_string());
+            }
+
+            let (src_reg, src_imm) = match &tokens[*current] {
+                Token::Register(reg) => (*reg, None),
+                Token::Immediate(imm) => (0xF, Some(*imm)),
+                _ => return Err("Invalid source operand in PUSH instruction".to_string()),
+            };
+
+            Ok(Instruction {
+                opcode: 0x19,
+                src_reg,
+                dest_reg: 0,
+                immediate: src_imm.unwrap_or(0),
+            })
+        },
+
+        Token::POP => {
+            *current += 1;
+            if *current >= tokens.len() {
+                return Err("Expected an operand in POP opcode".to_string())
+            }
+
+            let dest_reg = match &tokens[*current] {
+                Token::Register(reg) => *reg,
+                _ => return Err("Expected destination register in POP instruction".to_string()),
+            };
+
+            Ok(Instruction {
+                opcode: 0x1A,
+                src_reg: 0,
+                dest_reg,
+                immediate: 0,
+            })
+        }
+
+        Token::INT => {
+            *current += 1;
+            if *current >= tokens.len() {
+                return Err("Expected an operand in INT instruction".to_string());
+            }
+
+            let immediate = match &tokens[*current] {
+                Token::Immediate(imm) => {
+                    if *imm > 255 {
+                        return Err("Interrupt vector must be between 0 and 255".to_string());
+                    }
+                    *imm
+                },
+                _ => return Err("Expected immediate value for interrupt vector".to_string()),
+            };
+
+            Ok(Instruction {
+                opcode: 0x1B,
+                src_reg: 0,
+                dest_reg: 0,
+                immediate,
+            })
+        },
+
+        Token::HALT => Ok(Instruction {
+            opcode: 0x1C,
+            src_reg: 0,
+            dest_reg: 0,
+            immediate: 0,
+        }),
+
+        Token::IRET => Ok(Instruction {
+            opcode: 0x1D,
+            src_reg: 0,
+            dest_reg: 0,
+            immediate: 0,
+        }),
 
         _ => Err(format!("Unknown instruction: {:?}", tokens[*current])),
     }
@@ -952,16 +1497,30 @@ fn main() { // TODO: Implement loading from file
     ]; */
 
     let program_asm = 
-    r#"start:
-        NOP
+        r#"NOP
+        start:
         MOV #3 R0
         MOV #4 R1
         ADD R0 R1
+        JMP @start
         HALT
-        JMP @start"#;
+        "#;
 
-    match lexer(program_asm) {
-        Ok(tokens) => println!("Successfully tokenized: {:?}", tokens),
-        Err(e) => eprintln!("{}", e),
-    }
+    let tokens = match lexer(program_asm) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("Lexer error: {}", e);
+            return;
+        }
+    };
+    
+    let instructions = match parse(tokens) {
+        Ok(i) => i,
+        Err(e) => {
+            eprintln!("Parser error: {}", e);
+            return;
+        }
+    };
+
+    println!("{:#?}", instructions);
 }
