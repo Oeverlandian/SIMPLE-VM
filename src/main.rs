@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, vec};
 
 const PROGRAM_MEMORY_SIZE: usize = 1024 * 32; // 32 KB
 const DATA_MEMORY_SIZE: usize = 1024 * 8;     // 8 KB
@@ -139,7 +139,7 @@ impl CPU {
         }
     }
 
-    fn load_program(&mut self, program: &[u32]) {
+    fn load_program(&mut self, program: Vec<u32>) {
         for (i, &instruction) in program.iter().enumerate() {
             let addr = i * 4;
             if addr < PROGRAM_MEMORY_SIZE {
@@ -1485,10 +1485,30 @@ fn parse_instruction(tokens: &Vec<Token>, current: &mut usize, label_positions: 
     }
 }
 
+fn encode(instructions: Vec<Instruction>) -> Vec<u32> {
+    let mut program = vec![];
+
+    for instruction in instructions {
+        let instruction = pack_instruction(instruction.opcode, instruction.src_reg, instruction.dest_reg, instruction.immediate);
+        program.push(instruction);
+    }
+
+    program
+}
+
+fn pack_instruction(opcode: u8, src_reg: u8, dest_reg: u8, immediate: u16) -> u32 {
+    let opcode = (opcode & 0xFF) as u32;
+    let src_reg = (src_reg & 0xF) as u32;
+    let dest_reg = (dest_reg & 0xF) as u32;
+    let immediate = (immediate & 0xFFFF) as u32;
+    
+    (opcode << 24) | (src_reg << 20) | (dest_reg << 16) | immediate
+}
+
 fn main() { // TODO: Implement loading from file
     let mut cpu = CPU::new();
      
-    /* let program = [
+    /* let program = vec![
         0x00_0_0_0000,  // NOP
         0x0D_F_0_0003,  // MOV #3 -> R0
         0x0D_F_1_0004,  // MOV #4 -> R1
@@ -1498,11 +1518,9 @@ fn main() { // TODO: Implement loading from file
 
     let program_asm = 
         r#"NOP
-        start:
         MOV #3 R0
         MOV #4 R1
         ADD R0 R1
-        JMP @start
         HALT
         "#;
 
@@ -1522,5 +1540,11 @@ fn main() { // TODO: Implement loading from file
         }
     };
 
-    println!("{:#?}", instructions);
+    let program = encode(instructions);
+
+    cpu.debug_registers();
+    cpu.load_program(program);
+    cpu.run();
+    cpu.debug_registers();
+    
 }
