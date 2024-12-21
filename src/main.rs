@@ -1558,9 +1558,39 @@ fn main() {
 
     let program = encode(instructions);
 
-    cpu.debug_registers();
+    if args.contains(&"--registers".to_string()) || args.contains(&"-r".to_string()) {
+        cpu.debug_registers();
+    }
+
+    if args.contains(&"--stack".to_string()) || args.contains(&"-s".to_string()) {
+        cpu.debug_stack();
+    }
+
+    if args.contains(&"--program_memory".to_string()) || args.contains(&"-p".to_string()) {
+        cpu.debug_program_memory();
+    }
+
+    if args.contains(&"--data_memory".to_string()) || args.contains(&"-d".to_string()) {
+        cpu.debug_data_memory();
+    }
+
     cpu.load_program(program);
     cpu.run();
-    cpu.debug_registers();
+
+    if args.contains(&"--registers".to_string()) || args.contains(&"-r".to_string()) {
+        cpu.debug_registers();
+    }
+
+    if args.contains(&"--stack".to_string()) || args.contains(&"-s".to_string()) {
+        cpu.debug_stack();
+    }
+
+    if args.contains(&"--program_memory".to_string()) || args.contains(&"-p".to_string()) {
+        cpu.debug_program_memory();
+    }
+
+    if args.contains(&"--data_memory".to_string()) || args.contains(&"-d".to_string()) {
+        cpu.debug_data_memory();
+    }
     
 }
