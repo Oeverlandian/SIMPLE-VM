@@ -1,3 +1,4 @@
+use std::env;
 use std::{collections::HashMap, vec};
 
 const PROGRAM_MEMORY_SIZE: usize = 1024 * 32; // 32 KB
@@ -1505,8 +1506,25 @@ fn pack_instruction(opcode: u8, src_reg: u8, dest_reg: u8, immediate: u16) -> u3
     (opcode << 24) | (src_reg << 20) | (dest_reg << 16) | immediate
 }
 
-fn main() { // TODO: Implement loading from file
+fn main() {
     let mut cpu = CPU::new();
+
+    let args: Vec<String> = env::args().collect();
+    
+    if args.len() < 2 {
+        println!("Usage: {} <file_path>", args[0]);
+        return;
+    }
+
+    let file_path = &args[1];
+
+    let source_code = match std::fs::read_to_string(file_path) {
+        Ok(content) => content,
+        Err(err) => {
+            println!("Error reading file: {}", err);
+            return;
+        }
+    };
      
     /* let program = vec![
         0x00_0_0_0000,  // NOP
@@ -1516,15 +1534,15 @@ fn main() { // TODO: Implement loading from file
         0x1C_0_0_0000,  // HALT
     ]; */
 
-    let program_asm = 
+    /* let program_asm = 
         r#"NOP
         MOV #3 R0
         MOV #4 R1
         ADD R0 R1
         HALT
-        "#;
+        "#; */
 
-    let tokens = match lexer(program_asm) {
+    let tokens = match lexer(&source_code) {
         Ok(t) => t,
         Err(e) => {
             eprintln!("Lexer error: {}", e);
